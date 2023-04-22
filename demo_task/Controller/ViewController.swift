@@ -70,6 +70,7 @@ class ViewController: UIViewController{
     
 }
 
+let imageCache = NSCache<NSString, AnyObject>()
 
 extension UIImageView
 {
@@ -78,21 +79,32 @@ extension UIImageView
     
     func downloadImage(from url:URL){
         contentMode = .scaleToFill
-        let dataTask = URLSession.shared.dataTask(with: url) { data, response,error in
-            guard let httpResponse = response as? HTTPURLResponse,httpResponse.statusCode == 200,
-                  let  mimeType = response?.mimeType, mimeType.hasPrefix("image"),
-                  let data = data,error == nil,
-                  let image = UIImage(data:data)
-            else
-            {
-                return
-            }
-            DispatchQueue.main.async{
-                self.image = image
-            }
-            
+        
+        // check if image is available in cache else does API call
+        
+        if let cachedImage = imageCache.object(forKey: url.absoluteString as NSString) as? UIImage {
+            self.image = cachedImage
         }
-        dataTask.resume()
+        else
+        {
+            let dataTask = URLSession.shared.dataTask(with: url) { data, response,error in
+                guard let httpResponse = response as? HTTPURLResponse,httpResponse.statusCode == 200,
+                      let  mimeType = response?.mimeType, mimeType.hasPrefix("image"),
+                      let data = data,error == nil,
+                      let image = UIImage(data:data)
+                else
+                {
+                    return
+                }
+                DispatchQueue.main.async{
+                    let imageToCache = UIImage(data: data)
+                    imageCache.setObject(imageToCache!, forKey: url.absoluteString as NSString)
+                    self.image = imageToCache
+                }
+                
+            }
+            dataTask.resume()
+        }
     }
 }
 
